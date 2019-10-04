@@ -4,10 +4,11 @@ using System.Linq;
 
 namespace TeleStats.Utilities
 {
+    /// <summary>
+    /// Provides feature flag checks.
+    /// </summary>
     public class FeatureFlags
     {
-        private const string EnvironmentVariableName = "TELESTATS_FLAGS";
-
         private static HashSet<FeatureFlag> _availableFeatureFlags = new HashSet<FeatureFlag>();
 
         static FeatureFlags()
@@ -15,15 +16,24 @@ namespace TeleStats.Utilities
             Reload();
         }
 
+        /// <summary>
+        /// Reloads the feature flags.
+        /// </summary>
         public static void Reload()
         {
             _availableFeatureFlags = new HashSet<FeatureFlag>(
-                Environment.GetEnvironmentVariable(EnvironmentVariableName)
-                .Split(',', ';')
-                .Where(x => !string.IsNullOrEmpty(x))
-                .Select(x => new FeatureFlag(x)));
+                Configuration.Get.Flags.Select(x => new FeatureFlag(x)));
         }
 
+        /// <summary>
+        /// Checks whether a specified <paramref name="featureFlag" /> is set.
+        /// </summary>
+        /// <param name="featureFlag">
+        /// The feature to check for.
+        /// </param>
+        /// <returns>
+        /// A <see cref="bool" /> indicating whether the specified <paramref name="featureFlag" /> is set.
+        /// </returns>
         public static bool Has(FeatureFlag featureFlag) =>
             _availableFeatureFlags.Contains(featureFlag);
     }
