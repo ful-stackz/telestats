@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using TeleStats.Utilities;
 
 namespace TeleStats.Generics
 {
@@ -11,6 +12,10 @@ namespace TeleStats.Generics
     public class GenericStats : StatisticsBase
     {
         private readonly IList<GenericStat> _stats = new List<GenericStat>();
+
+        /// <inheritdoc />
+        public override string Header =>
+            string.Join(",", _stats.Select(x => x.Name));
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GenericStats" /> class.
@@ -153,9 +158,26 @@ namespace TeleStats.Generics
                 ? measurable
                 : throw new InvalidOperationException($"Stat with name '{name}' is not a {typeof(Measurable)}.");
         }
-
+        
         private static string PrepareName(string name) =>
             name.Trim().ToUpperInvariant();
+
+        /// <inheritdoc />
+        public override string GetNextData() =>
+            string.Join(",", _stats.Select(x => x.Format()));
+
+        /// <inheritdoc />
+        public override void Save()
+        {
+            if (FeatureFlags.Has(FeatureFlag.EnableTeleStats))
+            {
+                base.Save();
+            }
+        }
+
+        /// <inheritdoc />
+        public override void Reset() =>
+            _stats.ToList().ForEach(x => x.Reset());
 
         private class GenericStat
         {
