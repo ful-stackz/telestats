@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Extensions.Logging;
 using TeleStats.Utilities;
 
 namespace TeleStats
@@ -12,7 +11,6 @@ namespace TeleStats
     public class Configuration
     {
         private static readonly Configuration Instance = new Configuration();
-        private static readonly ILoggerFactory AppLoggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
 
         private readonly HashSet<string> _configFlags = new HashSet<string>();
 
@@ -83,7 +81,5 @@ namespace TeleStats
         {
             FeatureFlags.Reload();
         }
-
-        internal ILogger<T> CreateLogger<T>() => AppLoggerFactory.CreateLogger<T>();
     }
 }
