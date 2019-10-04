@@ -198,8 +198,16 @@ namespace TeleStats.Generics
             public string Format() =>
                 _formatter(Value);
 
-            public void Reset() =>
+            public void Reset()
+            {
+                if (Value is Measurable measurable)
+                {
+                    measurable.Reset();
+                    return;
+                }
+
                 Value = _defaultValue;
+            }
         }
     }
 }
