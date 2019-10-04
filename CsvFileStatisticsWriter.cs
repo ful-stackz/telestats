@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Microsoft.Extensions.Logging;
 
 namespace TeleStats
 {
@@ -9,13 +10,11 @@ namespace TeleStats
     public class CsvFileStatisticsWriter : IStatisticsWriter
     {
         private static readonly int BatchSize = 90;
-        private static readonly string LogFilename = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            "TeleStats",
-            "log.txt");
         
+        private readonly ILogger<CsvFileStatisticsWriter> _logger;
         private readonly string _filename;
         
+        private bool _canWrite;
         private string _header;
         private string[] _batch = new string[BatchSize];
         private int _batchIndex = 0;
@@ -35,14 +34,31 @@ namespace TeleStats
                     nameof(filename));
             }
 
+            _logger = Configuration.Get.CreateLogger<CsvFileStatisticsWriter>();
             _filename = filename;
 
-            Directory.CreateDirectory(Path.GetDirectoryName(filename));
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(filename));
+                _canWrite = true;
+            }
+            catch (Exception ex)
+            {
+                _canWrite = false;
+                _logger.LogError(ex, $"Could not create directory for {filename}.");
+            }
         }
 
         /// <inheritdoc />
         public void Write(IStatistics stats)
         {
+            if (!_canWrite)
+            {
+                _logger.LogWarning("Resetting writinig batch, because writer cannot write.");
+                Reset();
+                return;
+            }
+
             if (_header is null)
             {
                 _header = stats.Header;
@@ -62,14 +78,20 @@ namespace TeleStats
         /// <inheritdoc />
         public void Flush()
         {
+            if (!_canWrite)
+            {
+                _logger.LogWarning("Resetting writinig batch, because writer cannot write.");
+                Reset();
+                return;
+            }
+
             if (_header is null)
             {
                 return;
             }
 
             WriteToFile();
-            _batch = new string[BatchSize];
-            _batchIndex = 0;
+            Reset();
         }
 
         private void WriteToFile()
@@ -81,14 +103,18 @@ namespace TeleStats
                     File.WriteAllText(_filename, _header + Environment.NewLine);
                 }
 
-                // File.AppendAllText(_filename, stats.GetNextData() + Environment.NewLine);
                 File.AppendAllLines(_filename, _batch);
             }
             catch (Exception ex)
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(LogFilename));
-                File.AppendAllText(LogFilename, $"[{DateTime.Now.ToString("s")}] [{ex.GetType()}] {ex.Message}");
+                _logger.LogError(ex, "Could not store stats data.");
             }
+        }
+
+        private void Reset()
+        {
+            _batch = new string[BatchSize];
+            _batchIndex = 0;
         }
     }
 }
