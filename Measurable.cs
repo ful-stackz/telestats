@@ -20,7 +20,7 @@ namespace TeleStats
         /// <summary>
         /// Gets the ellapsed milliseconds since the measurement was started.
         /// </summary>
-        public virtual long Milliseconds => _stopwatch.ElapsedMilliseconds;
+        public virtual long Milliseconds { get; private set; }
 
         /// <summary>
         /// Starts the measurement.
@@ -31,11 +31,20 @@ namespace TeleStats
         }
 
         /// <summary>
-        /// Stops the measurement.
+        /// Stops the measurement and updates the <see cref="Milliseconds"/>.
         /// </summary>
-        public virtual void Stop()
+        /// <param name="reset">
+        /// Specifies whether to reset the measure after stopping and setting the <see cref="Milliseconds"/>.
+        /// </param>
+        public virtual void Stop(bool reset = false)
         {
             _stopwatch.Stop();
+            Milliseconds = _stopwatch.ElapsedMilliseconds;
+
+            if (reset)
+            {
+                _stopwatch.Reset();
+            }
         }
 
         /// <summary>
@@ -44,6 +53,7 @@ namespace TeleStats
         public virtual void Reset()
         {
             _stopwatch.Reset();
+            Milliseconds = 0;
         }
     }
 }
