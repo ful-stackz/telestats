@@ -34,14 +34,14 @@ namespace TeleStats.Generics
         /// <param name="name">
         /// Identifies the stat.
         /// </param>
-        /// <param name="defaultValue">
-        /// The value to be set to the stat when it's being reset.
-        /// </param>
         /// <param name="value">
         /// Optional initial value.
         /// </param>
         /// <param name="formatter">
         /// Optional custom formatting to be applied to the value of the stat when saving it.
+        /// </param>
+        /// <param name="resetter">
+        /// Optional resetting logic, invoked when resetting the value of the stat.
         /// </param>
         /// <typeparam name="T">
         /// Specifies the value type of the stat.
@@ -52,7 +52,11 @@ namespace TeleStats.Generics
         /// <exception cref="KeyNotFoundException">
         /// When a stat with the specified <paramref name="name" /> does not exist.
         /// </exception>
-        public void Add<T>(string name, T defaultValue, T value = default, Func<T, string> formatter = null)
+        public void Add<T>(
+            string name,
+            T value = default,
+            Func<T, string> formatter = null,
+            Func<T, T> resetter = null)
         {
             var preparedName = PrepareName(name);
 
@@ -62,14 +66,18 @@ namespace TeleStats.Generics
             }
 
             Func<object, string> preparedFormatter = formatter is null
-                ? (Func<object, string>)(v => v.ToString())
+                ? v => v.ToString()
                 : (Func<object, string>)(v => formatter((T)v));
+
+            Func<object, object> preparedResetter = resetter is null
+                ? (_) => default(T)
+                : (Func<object, object>)(v => resetter((T)v));
 
             _stats.Add(new GenericStat(
                 name: preparedName,
                 value: value,
-                defaultValue: defaultValue,
-                formatter: preparedFormatter));
+                formatter: preparedFormatter,
+                resetter: preparedResetter));
         }
 
         /// <summary>
@@ -121,13 +129,15 @@ namespace TeleStats.Generics
                 ? (Func<object, string>)(v => (v as Measurable).Milliseconds.ToString("0"))
                 : (Func<object, string>)(v => formatter((v as Measurable).Milliseconds));
 
-            var measurable = new Measurable();
-
             _stats.Add(new GenericStat(
                 name: preparedName,
-                value: measurable,
-                defaultValue: measurable,
-                formatter: preparedFormatter));
+                value: new Measurable(),
+                formatter: preparedFormatter,
+                resetter: (val) =>
+                {
+                    (val as Measurable).Reset();
+                    return val;
+                }));
         }
 
         /// <summary>
@@ -182,32 +192,34 @@ namespace TeleStats.Generics
         private class GenericStat
         {
             private readonly Func<object, string> _formatter;
-            private readonly object _defaultValue;
+            private readonly Func<object, object> _resetter;
 
-            public GenericStat(string name, object value, object defaultValue, Func<object, string> formatter)
+            public GenericStat(
+                string name,
+                object value,
+                Func<object, string> formatter,
+                Func<object, object> resetter)
             {
+                if (string.IsNullOrEmpty(name))
+                {
+                    throw new ArgumentException($"Argument {nameof(name)} was null or empty.", nameof(name));
+                }
+
                 Name = name;
-                Value = value;
-                _defaultValue = defaultValue;
-                _formatter = formatter;
+                Value = value ?? string.Empty;
+                _formatter = formatter ?? throw new ArgumentNullException(nameof(formatter));
+                _resetter = resetter ?? throw new ArgumentNullException(nameof(resetter));
             }
 
             public string Name { get; }
+
             public object Value { get; set; }
 
             public string Format() =>
                 _formatter(Value);
 
-            public void Reset()
-            {
-                if (Value is Measurable measurable)
-                {
-                    measurable.Reset();
-                    return;
-                }
-
-                Value = _defaultValue;
-            }
+            public void Reset() =>
+                Value = _resetter(Value);
         }
     }
 }
