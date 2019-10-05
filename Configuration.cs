@@ -14,6 +14,8 @@ namespace TeleStats
 
         private readonly HashSet<string> _configFlags = new HashSet<string>();
 
+        private string _cliPrefix = string.Empty;
+
         private Configuration()
         {
         }
@@ -63,8 +65,10 @@ namespace TeleStats
         /// </returns>
         public Configuration UseCommandLineArguments(string prefix)
         {
+            _cliPrefix = prefix;
+
             Environment.GetCommandLineArgs()
-                .Select(x => x.StartsWith(prefix) ? x : null)
+                .Select(x => x.StartsWith(_cliPrefix) ? x : null)
                 .Where(x => !(x is null))
                 .Select(x => x.Substring(prefix.Length))
                 .Select(x => x.Trim().ToUpperInvariant())
@@ -75,11 +79,32 @@ namespace TeleStats
         }
 
         /// <summary>
+        /// Adds the specified <paramref name="args"/> to be used for configuration.
+        /// </summary>
+        /// <param name="args">
+        /// The arguments to add to the configuration.
+        /// </param>
+        /// <returns>
+        /// The <see cref="Configuration" /> object.
+        /// </returns>
+        public Configuration AddCommandLineArguments(params string[] args)
+        {
+            args
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Select(x => x.StartsWith(_cliPrefix) ? x.Substring(_cliPrefix.Length) : x)
+                .Select(x => x.Trim().ToUpperInvariant())
+                .ToList()
+                .ForEach(x => _configFlags.Add(x));
+
+            return this;
+        }
+
+        /// <summary>
         /// Rebuilds the TeleStats configuration.
         /// </summary>
         public void Build()
         {
-            FeatureFlags.Reload();
+            ConfigFlags.Reload();
         }
     }
 }
