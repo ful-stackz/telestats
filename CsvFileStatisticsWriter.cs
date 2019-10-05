@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using TeleStats.Utilities;
 
 namespace TeleStats
 {
@@ -8,16 +9,18 @@ namespace TeleStats
     /// </summary>
     public class CsvFileStatisticsWriter : IStatisticsWriter
     {
-        private static readonly int BatchSize = 90;
+        private static readonly int DefaultBatchSize = 90;
+
         private static readonly string LogFilename = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
             "TeleStats",
             "log.txt");
         
         private readonly string _filename;
+        private readonly int _batchSize;
         
         private string _header;
-        private string[] _batch = new string[BatchSize];
+        private string[] _batch;
         private int _batchIndex = 0;
 
         /// <summary>
@@ -37,6 +40,9 @@ namespace TeleStats
 
             _filename = filename;
 
+            _batchSize = ConfigFlags.Has(ConfigFlag.DisableBatchWriting) ? 1 : DefaultBatchSize;
+            _batch = new string[_batchSize];
+
             Directory.CreateDirectory(Path.GetDirectoryName(filename));
         }
 
@@ -50,11 +56,11 @@ namespace TeleStats
             
             _batch[_batchIndex++] = stats.GetNextData();
 
-            if (_batchIndex == BatchSize)
+            if (_batchIndex >= _batchSize)
             {
                 WriteToFile();
 
-                _batch = new string[BatchSize];
+                _batch = new string[_batchSize];
                 _batchIndex = 0;
             }
         }
@@ -68,7 +74,7 @@ namespace TeleStats
             }
 
             WriteToFile();
-            _batch = new string[BatchSize];
+            _batch = new string[_batchSize];
             _batchIndex = 0;
         }
 

@@ -220,7 +220,7 @@ namespace TeleStats.Generics
         /// <inheritdoc />
         public override void Save()
         {
-            if (FeatureFlags.Has(FeatureFlag.EnableTeleStats))
+            if (ConfigFlags.Has(ConfigFlag.EnableTeleStats))
             {
                 base.Save();
             }
