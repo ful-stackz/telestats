@@ -30,8 +30,8 @@ private readonly GenericStats _stats = new GenericStats(
 
 // 3. Define the data you want to track
 // Note: you should add the data in the beginning and not temper with it in the rest of the code
-_stats.Add<int>("attempts", defaultValue: 1);
-_stats.Add<bool>("processing_failed", false);
+_stats.Add<int>("attempts");
+_stats.Add<bool>("processing_failed");
 _stats.Add<int>("processed_items");
 _stats.AddMeasurable("processing_duration");
 
