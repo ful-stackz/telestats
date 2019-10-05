@@ -6,6 +6,47 @@ using TeleStats.Utilities;
 namespace TeleStats.Generics
 {
     /// <summary>
+    /// Provides custom string formatting for a <paramref name="value"/> of the specified type <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T">
+    /// The type.
+    /// </typeparam>
+    /// <param name="value">
+    /// The value that must be converted to a <see cref="string"/>.
+    /// </param>
+    /// <returns>
+    /// A <see cref="string"/> representation of the specified <paramref name="value"/>.
+    /// </returns>
+    public delegate string StringFormatter<T>(T value);
+
+    /// <summary>
+    /// Provides custom string formatting for a <see cref="Measurable.Milliseconds"/> property of a
+    /// <see cref="Measurable"/> stat.
+    /// </summary>
+    /// <param name="milliseconds">
+    /// The milliseconds value that must be converted to a <see cref="string"/>.
+    /// </param>
+    /// <returns>
+    /// A <see cref="string"/> representation of the specified <paramref name="milliseconds"/>.
+    /// </returns>
+    public delegate string MeasurableStringFormatter(long milliseconds);
+
+    /// <summary>
+    /// Provides custom reset logic for a stat. Provides the <paramref name="currentValue"/> and expects the reset
+    /// value to be returned.
+    /// </summary>
+    /// <typeparam name="T">
+    /// The type of the <paramref name="currentValue"/> and the expected, reset value.
+    /// </typeparam>
+    /// <param name="currentValue">
+    /// The current value of the stat.
+    /// </param>
+    /// <returns>
+    /// The value to be set to a stat after resetting it.
+    /// </returns>
+    public delegate T ValueResetter<T>(T currentValue);
+
+    /// <summary>
     /// Represents a collection of generic dynamic stats. Stats can be added and their values set without implementing
     /// a new class dericed from <see cref="StatisticsBase" />.
     /// </summary>
@@ -55,8 +96,8 @@ namespace TeleStats.Generics
         public void Add<T>(
             string name,
             T value = default,
-            Func<T, string> formatter = null,
-            Func<T, T> resetter = null)
+            StringFormatter<T> formatter = null,
+            ValueResetter<T> resetter = null)
         {
             var preparedName = PrepareName(name);
 
@@ -65,13 +106,13 @@ namespace TeleStats.Generics
                 throw new InvalidOperationException($"Stat with name '{name}' already exists.");
             }
 
-            Func<object, string> preparedFormatter = formatter is null
-                ? v => v.ToString()
-                : (Func<object, string>)(v => formatter((T)v));
+            StringFormatter<object> preparedFormatter = formatter is null
+                ? new StringFormatter<object>(v => v.ToString())
+                : new StringFormatter<object>(v => formatter((T)v));
 
-            Func<object, object> preparedResetter = resetter is null
-                ? (_) => default(T)
-                : (Func<object, object>)(v => resetter((T)v));
+            ValueResetter<object> preparedResetter = resetter is null
+                ? new ValueResetter<object>(_ => default(T))
+                : new ValueResetter<object>(v => resetter((T)v));
 
             _stats.Add(new GenericStat(
                 name: preparedName,
@@ -116,7 +157,7 @@ namespace TeleStats.Generics
         /// <exception cref="InvalidOperationException">
         /// When a stat identified by the specified <paramref name="name" /> already exists.
         /// </exception>
-        public void AddMeasurable(string name, Func<long, string> formatter = null)
+        public void AddMeasurable(string name, MeasurableStringFormatter formatter = null)
         {
             var preparedName = PrepareName(name);
 
@@ -125,9 +166,9 @@ namespace TeleStats.Generics
                 throw new InvalidOperationException($"Stat with name '{name}' already exists.");
             }
 
-            Func<object, string> preparedFormatter = formatter is null
-                ? (Func<object, string>)(v => (v as Measurable).Milliseconds.ToString("0"))
-                : (Func<object, string>)(v => formatter((v as Measurable).Milliseconds));
+            StringFormatter<object> preparedFormatter = formatter is null
+                ? new StringFormatter<object>(v => (v as Measurable).Milliseconds.ToString("0"))
+                : new StringFormatter<object>(v => formatter((v as Measurable).Milliseconds));
 
             _stats.Add(new GenericStat(
                 name: preparedName,
@@ -191,14 +232,14 @@ namespace TeleStats.Generics
 
         private class GenericStat
         {
-            private readonly Func<object, string> _formatter;
-            private readonly Func<object, object> _resetter;
+            private readonly StringFormatter<object> _formatter;
+            private readonly ValueResetter<object> _resetter;
 
             public GenericStat(
                 string name,
                 object value,
-                Func<object, string> formatter,
-                Func<object, object> resetter)
+                StringFormatter<object> formatter,
+                ValueResetter<object> resetter)
             {
                 if (string.IsNullOrEmpty(name))
                 {
